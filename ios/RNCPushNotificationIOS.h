@@ -22,6 +22,8 @@ typedef void (^RNCRemoteNotificationCallback)(UIBackgroundFetchResult result);
 + (void)didReceiveLocalNotification:(UILocalNotification *)notification;
 + (void)didReceiveNotificationResponse:(UNNotificationResponse *)response API_AVAILABLE(ios(10.0));
 + (void)didFailToRegisterForRemoteNotificationsWithError:(NSError *)error;
++ (void) handleNotifcationButtonClick:(NSNotification *)notification;
++ (void) didActionButtonClicked: (NSDictionary *)notification;
 #endif
 
 @end

@@ -19,6 +19,7 @@ NSString *const RCTRemoteNotificationReceived = @"RemoteNotificationReceived";
 static NSString *const kLocalNotificationReceived = @"LocalNotificationReceived";
 static NSString *const kRemoteNotificationsRegistered = @"RemoteNotificationsRegistered";
 static NSString *const kRemoteNotificationRegistrationFailed = @"RemoteNotificationRegistrationFailed";
+static NSString *const kNotificationButtonClicked = @"NotificationButtonClicked";
 
 static NSString *const kErrorUnableToRequestPermissions = @"E_UNABLE_TO_REQUEST_PERMISSIONS";
 
@@ -155,6 +156,10 @@ RCT_EXPORT_MODULE()
                                            selector:@selector(handleRemoteNotificationRegistrationError:)
                                                name:kRemoteNotificationRegistrationFailed
                                              object:nil];
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(handleButtonAction:)
+                                               name:kNotificationButtonClicked
+                                             object:nil];
 }
 
 - (void)stopObserving
@@ -167,7 +172,9 @@ RCT_EXPORT_MODULE()
   return @[@"localNotificationReceived",
            @"remoteNotificationReceived",
            @"remoteNotificationsRegistered",
-           @"remoteNotificationRegistrationError"];
+           @"remoteNotificationRegistrationError",
+           @"NotificationButtonClicked"
+  ];
 }
 
 + (void)didRegisterUserNotificationSettings:(__unused UIUserNotificationSettings *)notificationSettings
@@ -202,6 +209,53 @@ RCT_EXPORT_MODULE()
                                                     userInfo:userInfo];
 }
 
++ (void) didActionButtonClicked: (UNNotificationResponse *)notification {
+  
+//   userInfo = {
+//      alertAction = "<null>";
+//      alertBody = "With Snooze Button";
+//      alertTitle = Snooze;
+//      applicationIconBadgeNumber = 0;
+//      category = "<null>";
+//      fireDate = "2020-07-13T21:14:46.909+05:30";
+//      remote = 0;
+//      repeatInterval = 0;
+//      soundName = default;
+//      userInfo =     {
+//          id = "-10";
+//          screenType = Dashboard;
+//      };
+//  }
+  
+  NSString *action = notification.actionIdentifier;
+  NSString *message = notification.notification.request.content.userInfo[@"aps"][@"alert"];
+  NSMutableDictionary *data = [[NSMutableDictionary alloc ] initWithDictionary: notification.notification.request.content.userInfo[@"aps"]];
+  
+  [data setObject:action forKey:@"action"];
+  
+  NSDictionary *dict = @{
+    @"alertAction": @"<null>",
+    @"alertBody": message,
+    @"action": action,
+    @"alertTitle": @"Notification",
+    @"applicationIconBadgeNumber": @"0",
+    @"category": @"<null>",
+    @"userInfo":data
+  };
+  
+  
+  NSDictionary *userInfo = @{@"notification": notification};
+  [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationButtonClicked
+                                                      object:self
+                                                    userInfo:dict];
+}
+
+- (void) handleButtonAction: (NSNotification *)dict {
+  
+  [self sendEventWithName:@"localNotificationReceived" body:dict.userInfo];
+}
+
+
 + (void)didReceiveRemoteNotification:(NSDictionary *)notification
               fetchCompletionHandler:(RNCRemoteNotificationCallback)completionHandler
 {
@@ -227,8 +281,11 @@ API_AVAILABLE(ios(10.0)) {
 
 - (void)handleLocalNotificationReceived:(NSNotification *)notification
 {
+  
+  
   [self sendEventWithName:@"localNotificationReceived" body:notification.userInfo];
 }
+
 
 - (void)handleRemoteNotificationReceived:(NSNotification *)notification
 {
@@ -263,6 +320,7 @@ API_AVAILABLE(ios(10.0)) {
   };
   [self sendEventWithName:@"remoteNotificationRegistrationError" body:errorDetails];
 }
+
 
 RCT_EXPORT_METHOD(onFinishRemoteNotification:(NSString *)notificationId fetchResult:(UIBackgroundFetchResult)result) {
   RNCRemoteNotificationCallback completionHandler = self.remoteNotificationCallbacks[notificationId];
